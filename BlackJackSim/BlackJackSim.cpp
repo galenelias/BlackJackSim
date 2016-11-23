@@ -12,12 +12,14 @@
 #include <list>
 #include <time.h>
 #include <cassert>
+#include <array>
 
-std::ofstream nullStream;
 //std::ostream & output = std::cout;
+std::ofstream nullStream;
 std::ostream & output = nullStream;
-//#define output std::cout;
-//#define output 
+
+#define DebugOut(x)
+//#define DebugOut(x) x
 
 enum CardFace
 {
@@ -54,7 +56,6 @@ public:
 	CardSuit Suit() const;
 	int Value() const;
 
-	bool IsSoft() const;
 	std::string ToString() const;
 
 private:
@@ -87,14 +88,13 @@ int Card::Value() const
 		return (static_cast<int>(Face()) + 1); // +1 due to zero based enumeration
 }
 
+char* g_szSuitNames[4] = {"S", "H", "C", "D"};
+char* g_szFaceNames[13] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
 
 std::string Card::ToString() const
 {
-	char* szSuitNames[4] = {"S", "H", "C", "D"};
-	char* szFaceNames[13] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
-
-	std::string strFaceName = szFaceNames[static_cast<int>(Face())];
-	std::string strSuitName = szSuitNames[static_cast<int>(Suit())];
+	std::string strFaceName = g_szFaceNames[static_cast<int>(Face())];
+	std::string strSuitName = g_szSuitNames[static_cast<int>(Suit())];
 
 	return strFaceName + strSuitName;
 }
@@ -120,7 +120,6 @@ protected:
 	double m_money;
 	int m_hands;
 };
-
 
 
 class DeckShoe
@@ -197,10 +196,14 @@ public:
 	bool         IsSoft() const;
 	bool         IsBlackjack() const;
 	Card         GetCard(int i) const { return m_cards[i]; }
+	bool         IsFromSplit() const { return m_isFromSplit; }
+	void         SetIsFromSplit() { m_isFromSplit = true; }
 
-	std::string  ToString();
+	std::string  ToString() const;
 
 protected:
+	bool     m_isFromSplit = false;
+
 	std::pair<int, bool> ComputeValue() const;  // sum, isSoft
 
 	std::vector<Card> m_cards;
@@ -250,7 +253,7 @@ bool Hand::IsBlackjack() const
 }
 
 
-std::string Hand::ToString()
+std::string Hand::ToString() const
 {
 	std::ostringstream oss;
 
@@ -275,20 +278,21 @@ public:
 		: m_isFirstCardHidden(true)
 	{ }
 
-	int Showing();
+	int Showing() const;
+	std::string ToString() const;
+
 	void FlipHiddenCard() { m_isFirstCardHidden = false; }
-	std::string ToString();
 
 protected:
 	bool m_isFirstCardHidden;
 };
 
-int DealerHand::Showing()
+int DealerHand::Showing() const
 {
 	return m_cards[1].Value();
 }
 
-std::string DealerHand::ToString()
+std::string DealerHand::ToString() const
 {
 	if (m_isFirstCardHidden)
 		return m_cards[1].ToString();
@@ -296,48 +300,92 @@ std::string DealerHand::ToString()
 		return __super::ToString();
 }
 
-class PlayerHand : public Hand
+class PlayerSubHand : public Hand
 {
 public:
-	PlayerHand(Player & player)
+	PlayerSubHand(Player& player)
 		: m_player(player)
 		, m_bet(1.0)
-		, m_isFromSplit(false)
-	{
-
-	}
-
-	bool CanHit();
-	bool CanSplit() const;
-	void DoubleDown();
-	bool CanDoubleDown() const { return m_cards.size() == 2; }
-	PlayerHand Split(DeckShoe & shoe);
+	{ }
 
 	Player& Owner() { return m_player; }
-	std::string PlayerName() const { return m_player.Name(); }
-	double Bet() { return m_bet; }
+
+	bool CanHit() const;
+	bool CanSplit() const;
+	bool CanDoubleDown() const { return m_cards.size() == 2; }
+	double Bet() const { return m_bet; }
+	const std::string PlayerName() const { return m_player.Name(); }
+
+	void DoubleDown(Card card);
+	PlayerSubHand Split(DeckShoe & shoe);
 	void PayoutHand(double result);
 
 private:
 	Player&  m_player;
 	double   m_bet;
-	bool     m_isFromSplit;
 };
 
-bool PlayerHand::CanSplit() const
+class PlayerHand
+{
+public:
+	PlayerHand(Player & player)
+		: m_player(player)
+		, m_subHands{{player}}
+	{
+	}
+
+	Player& Owner() { return m_player; }
+	std::string PlayerName() const { return m_player.Name(); }
+
+	std::list<PlayerSubHand>& SubHands() { return m_subHands; }
+	PlayerSubHand& PrimaryHand() { return m_subHands.front(); }
+
+	bool CanHit() const;
+
+	void AddCard(Card card);
+	void Split(PlayerSubHand& subHand, DeckShoe& shoe);
+
+private:
+	Player&  m_player;
+	std::list<PlayerSubHand> m_subHands;
+};
+
+void PlayerHand::AddCard(Card card)
+{
+	m_subHands.front().AddCard(card);
+}
+
+bool PlayerHand::CanHit() const
+{
+	for (const auto& subHand : m_subHands)
+	{
+		if (subHand.CanHit())
+			return true;
+	}
+	return false;
+}
+
+void PlayerHand::Split(PlayerSubHand& subHand, DeckShoe& shoe)
+{
+	PlayerSubHand newHand = subHand.Split(shoe);
+	m_subHands.push_back(std::move(newHand));
+}
+
+bool PlayerSubHand::CanSplit() const
 {
 	return m_cards.size() == 2 && m_cards[0].Face() == m_cards[1].Face();
 }
 
-void PlayerHand::DoubleDown()
+void PlayerSubHand::DoubleDown(Card card)
 {
 	assert(m_cards.size() == 2);
 	m_bet *= 2;
+	AddCard(card);
 }
 
-PlayerHand PlayerHand::Split(DeckShoe & shoe)
+PlayerSubHand PlayerSubHand::Split(DeckShoe & shoe)
 {
-	PlayerHand newHand(Owner());
+	PlayerSubHand newHand(Owner());
 
 	assert(CanSplit());
 
@@ -347,24 +395,27 @@ PlayerHand PlayerHand::Split(DeckShoe & shoe)
 	newHand.AddCard(shoe.DealCard());
 	AddCard(shoe.DealCard());
 
+	SetIsFromSplit();
+	newHand.SetIsFromSplit();
+
 	return newHand;
 }
 
-void PlayerHand::PayoutHand(double result)
+void PlayerSubHand::PayoutHand(double result)
 {
 	m_player.AdjustMoney(m_bet * result);
 }
 
-bool PlayerHand::CanHit()
+bool PlayerSubHand::CanHit() const
 {
 	bool cantHit = IsBusted() || IsBlackjack() || (m_isFromSplit && m_cards[0].Face() == Ace) || Value() >= 21;
 	return !cantHit;
 }
 
 
-double GetHandOutcome(const PlayerHand & playerHand, const Hand & dealerHand)
+double GetHandOutcome(const PlayerSubHand & playerHand, const Hand & dealerHand)
 {
-	output << playerHand.PlayerName() << ": ";
+	DebugOut(output << playerHand.PlayerName() << ": ");
 	if (playerHand.IsBusted())
 		return output << "Busted\n", -1;
 	else if (playerHand.IsBlackjack() && dealerHand.IsBlackjack())
@@ -389,6 +440,27 @@ enum class Action
 	Split
 };
 
+const char* GetActionString(Action action)
+{
+	switch (action)
+	{
+		case Action::Stand:
+			return "Stand";
+		case Action::Hit:
+			return "Hit";
+		case Action::DoubleDown:
+			return "Double DOwn";
+		case Action::Split:
+			return "Split";
+		default:
+			return "ERROR";
+	}
+}
+
+const int c_maxPlayerHandIndex = 31;
+const int c_maxDealerHandIndex = 10;
+
+#if 0
 class ActionTable
 {
 public:
@@ -402,8 +474,8 @@ public:
 
 private:
 
-	Action m_actions[34][10];
-	int m_actionCount[34][10];
+	Action m_actions[c_maxPlayerHandIndex][c_maxDealerHandIndex];
+	int m_actionCount[c_maxPlayerHandIndex][c_maxDealerHandIndex];
 };
 
 Action ActionTable::GetAction(int dealerIndex, int playerIndex)
@@ -414,27 +486,27 @@ Action ActionTable::GetAction(int dealerIndex, int playerIndex)
 
 void ActionTable::GenerateRandomActionTable()
 {
-	for (int i=0; i < 10; i++)
+	for (int i=0; i < c_maxDealerHandIndex; i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < c_maxDealerHandIndex; j++)
 		{
 			int r = rand() % 4;
 			m_actions[i][j] = static_cast<Action>(r);
 		}
 	}
 
-	for (int i=10; i < 34; i++)
+	for (int i=c_maxDealerHandIndex; i < c_maxPlayerHandIndex; i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < c_maxDealerHandIndex; j++)
 		{
 			int r = rand() % 3; // no split
 			m_actions[i][j] = static_cast<Action>(r);
 		}
 	}
 
-	for (int i=0; i < 34; i++)
+	for (int i=0; i < c_maxPlayerHandIndex; i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < c_maxDealerHandIndex; j++)
 		{
 			m_actionCount[i][j] = 0;
 		}
@@ -445,11 +517,11 @@ void ActionTable::AdjustRandomActionTable(int entriesToAdjust)
 {
 	for (int e = 0; e < entriesToAdjust; e++)
 	{
-		int i = rand() % 34;
-		int j = rand() % 10;
+		int i = rand() % c_maxPlayerHandIndex;
+		int j = rand() % c_maxDealerHandIndex;
 
 		int r = 0;
-		if (i < 10)
+		if (i < c_maxDealerHandIndex)
 			r = rand() % 4;
 		else
 			r = rand() % 3;
@@ -457,9 +529,9 @@ void ActionTable::AdjustRandomActionTable(int entriesToAdjust)
 		m_actions[i][j] = static_cast<Action>(r);
 	}
 
-	for (int i=0; i < 34; i++)
+	for (int i=0; i < c_maxPlayerHandIndex; i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < c_maxDealerHandIndex; j++)
 		{
 			m_actionCount[i][j] = 0;
 		}
@@ -471,9 +543,9 @@ void ActionTable::LoadActionTable(const std::string & strActions)
 {
 	int index=0;
 
-	for (int i=0; i < 34; i++)
+	for (int i=0; i < c_maxPlayerHandIndex; i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < c_maxDealerHandIndex; j++)
 		{
 			char c = strActions[index++];
 			switch (c)
@@ -491,11 +563,11 @@ void ActionTable::LoadActionTable(const std::string & strActions)
 std::string ActionTable::SaveActionTable()
 {
 	std::string strActions;
-	strActions.reserve(34*10);
+	strActions.reserve(c_maxPlayerHandIndex*c_maxDealerHandIndex);
 
-	for (int i=0; i < 34; i++)
+	for (int i=0; i < c_maxPlayerHandIndex; i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < c_maxDealerHandIndex; j++)
 		{
 			switch (m_actions[i][j])
 			{
@@ -512,9 +584,9 @@ std::string ActionTable::SaveActionTable()
 
 void ActionTable::PrintActionTable(std::ostream & stream)
 {
-	for (int i=0; i < 34; i++)
+	for (int i=0; i < c_maxPlayerHandIndex; i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < c_maxDealerHandIndex; j++)
 		{
 			switch (m_actions[i][j])
 			{
@@ -529,25 +601,28 @@ void ActionTable::PrintActionTable(std::ostream & stream)
 	}
 	stream << std::endl;
 }
+#endif
 
-
-// Player actions:
-//  Double A - 10   (10)
-//  Soft 13 - 20   (8)
-//  5 - 20    (16)
-int MapPlayerHandToActionIndex(PlayerHand & hand)
+int MapPlayerHandToActionIndex(const PlayerSubHand & hand)
 {
-	if (hand.CanSplit() && hand.GetCard(0).Value() == 11)
-		return 0;
+	// 0: 8 or less
+	// 1 - 12: 9 through 20
+	// 13 - 20: Soft 13 through 20
+	// 21 - 30: Double A through 10
+
+	const int handValue = hand.Value();
+	assert(handValue != 21);
+
+	if (hand.CanSplit() && hand.GetCard(0).Face() == Ace)
+		return 21;
 	else if (hand.CanSplit())
-		return hand.GetCard(0).Value() - 1;
-	else if (hand.IsSoft())
-		return 10 + hand.Value() - 13;
+		return 20 + hand.GetCard(0).Value();
+	else if (hand.IsSoft() && handValue >= 13)
+		return handValue;
+	else if (handValue <= 8)
+		return 0; //compress uninteresting values
 	else
-	{
-		assert(hand.Value() >= 5 && hand.Value() < 21);
-		return 18 + hand.Value() - 5;
-	}
+		return handValue - 8;
 }
 
 // DealerHand actions:
@@ -561,12 +636,13 @@ int MapDealerHandToActionIndex(int dealerCardValue)
 		return dealerCardValue - 2;
 }
 
+#if 0
+int s_Results[5] = {0,0,0,0,0};
+
 std::string GetNextAction(DealerHand & dealer, PlayerHand & player)
 {
 	return "s";
 }
-
-int s_Results[5] = {0,0,0,0,0};
 
 bool RunOneRound(DeckShoe & shoe, std::vector<Player> & players, ActionTable & actionTable)
 {
@@ -687,8 +763,292 @@ bool RunOneRound(DeckShoe & shoe, std::vector<Player> & players, ActionTable & a
 
 	return true;
 }
+#endif 
 
-int _tmain(int argc, _TCHAR* argv[])
+bool CanDoAction(const PlayerSubHand& hand, Action action)
+{
+	switch (action)
+	{
+		case Action::Hit:
+			return hand.CanHit();
+		case Action::Stand:
+			return true;
+		case Action::DoubleDown:
+			return hand.CanDoubleDown();
+		case Action::Split:
+			return hand.CanSplit();
+		default:
+			throw std::runtime_error("Unexpected action");
+	}
+}
+
+void DoAction(PlayerHand& playerHand, PlayerSubHand& subHand, Action action, DeckShoe& shoe)
+{
+	switch (action)
+	{
+		case Action::Hit:
+		{
+			const Card card = shoe.DealCard();
+			subHand.AddCard(card);
+
+			DebugOut(output << "Hit. " << card.ToString() << "(" << subHand.Value() << "), ");
+			break;
+		}
+		case Action::Stand:
+			DebugOut(output << "Stand.");
+			break;
+		case Action::DoubleDown:
+		{
+			const Card card = shoe.DealCard();
+			subHand.DoubleDown(card);
+			DebugOut(output << "Double Down. " << card.ToString() << "(" << subHand.Value() << "), ");
+			break;
+		}
+		case Action::Split:
+			DebugOut(output << "Split.");
+			playerHand.Split(subHand, shoe);
+			break;
+		default:
+			throw std::runtime_error("Unexpected action");
+	}
+}
+
+struct ResultData
+{
+	double result = 0.0;
+	int count = 0;
+};
+
+class ResultsCell
+{
+public:
+	const ResultData& GetResultData(Action action) const;
+	void AddResult(Action action, double result);
+private:
+	ResultData m_actionResults[4];
+};
+
+const ResultData& ResultsCell::GetResultData(Action action) const
+{
+	return m_actionResults[static_cast<int>(action)];
+}
+
+void ResultsCell::AddResult(Action action, double result)
+{
+	m_actionResults[static_cast<int>(action)].count++;
+	m_actionResults[static_cast<int>(action)].result += result;
+}
+
+class ResultsTable
+{
+public:
+	const ResultsCell& GetCell(int dealerHandIndex, int playerHandIndex) const;
+	void RecordResult(int dealerHandIndex, int playerHandIndex, Action action, double result);
+
+private:
+	ResultsCell m_results[c_maxPlayerHandIndex][c_maxDealerHandIndex];
+};
+
+const ResultsCell& ResultsTable::GetCell(int dealerHandIndex, int playerHandIndex) const
+{
+	return m_results[playerHandIndex][dealerHandIndex];
+}
+
+void ResultsTable::RecordResult(int dealerHandIndex, int playerHandIndex, Action action, double result)
+{
+	m_results[playerHandIndex][dealerHandIndex].AddResult(action, result);
+}
+
+Action GetOptimalAction(const ResultsTable& resultTable, int dealerHandIndex, const PlayerSubHand& playerHand)
+{
+	const int playerHandIndex = MapPlayerHandToActionIndex(playerHand);
+	const ResultsCell& cell = resultTable.GetCell(dealerHandIndex, playerHandIndex);
+
+	std::array<Action, 4> allActions { Action::Stand, Action::Hit, Action::DoubleDown, Action::Split};
+	Action optimalAction = Action::Stand;
+	double optimalResult = std::numeric_limits<double>::min();
+
+	for (Action action : allActions)
+	{
+		const ResultData& data = cell.GetResultData(action);
+		if (data.count == 0 || !CanDoAction(playerHand, action))
+			continue;
+
+		const double adjustedResult = data.result / data.count;
+
+		if (adjustedResult > optimalResult)
+		{
+			optimalResult = adjustedResult;
+			optimalAction = action;
+		}
+	}
+
+	return optimalAction;
+}
+
+double CompleteOptimally(DealerHand& dealerHand, PlayerHand& hand, const ResultsTable& resultTable, DeckShoe& shoe, Action lastAction)
+{
+	double result = 0.0;
+	auto& subHands = hand.SubHands();
+	const int dealerHandIndex = MapDealerHandToActionIndex(dealerHand.Showing());
+
+	if (lastAction != Action::Stand)
+	{
+		for (auto& subHand : subHands)
+		{
+			while (subHand.CanHit())
+			{
+				Action optimalAction;
+
+				do {
+					optimalAction = GetOptimalAction(resultTable, dealerHandIndex, subHand);
+				} while (!CanDoAction(subHand, optimalAction));
+
+				DoAction(hand, subHand, optimalAction, shoe);
+
+				if (optimalAction == Action::Stand)
+					break;
+			}
+		}
+	}
+
+	dealerHand.FlipHiddenCard();
+	while (dealerHand.Value() < 17 || (dealerHand.Value() == 17 && dealerHand.IsSoft()))
+	{
+		auto card = shoe.DealCard();
+		dealerHand.AddCard(card);
+	}
+	DebugOut(output << "\nDealer Final Hand: " << dealerHand.ToString() << " (" << dealerHand.Value() << ")" << std::endl);
+
+	for (auto& subHand : subHands)
+	{
+		const double outcome = GetHandOutcome(subHand, dealerHand);
+		result += subHand.Bet() * outcome;
+	}
+
+	return result;
+}
+
+void PrintResultsTable(const ResultsTable& results)
+{
+	std::array<Action, 4> allActions { Action::Stand, Action::Hit, Action::DoubleDown, Action::Split};
+
+	for (int i=0; i < c_maxPlayerHandIndex; i++)
+	{
+		for (Action a : allActions)
+		{
+			for (int j = 0; j < c_maxDealerHandIndex; j++)
+			{
+				const ResultsCell& cell = results.GetCell(j, i);
+				const ResultData& data = cell.GetResultData(a);
+
+				if (data.count == 0)
+					std::cout << "";
+				else
+					std::cout << data.result / data.count;
+
+				std::cout << "\t";
+			}
+			std::cout << "\n";
+		}
+	}
+}
+
+int DoMarkovMonte(int iterations)
+{
+	ResultsTable resultsTable;
+
+	srand(static_cast<unsigned int>(time(NULL)));
+	DeckShoe shoe(6);
+	Player dealer(std::string("Dealer"), 0);
+	
+	Player player("Player 1", 0.0);
+
+	for (int round = 0; round != iterations; round++)
+	{
+		player.ClearStats();
+
+		DealerHand dealerHand;
+		PlayerHand playerHand(player);
+
+		shoe.ReloadIfNecessary();
+
+		playerHand.AddCard(shoe.DealCard());
+		dealerHand.AddCard(shoe.DealCard());
+
+		playerHand.AddCard(shoe.DealCard());
+		dealerHand.AddCard(shoe.DealCard());
+
+		// Check blackjack push
+		// Check dealer blackjack lose
+		// Check player blackjack win
+		// Do decision tree
+
+		PlayerSubHand& hand = playerHand.PrimaryHand();
+
+		DebugOut(output << "Dealer showing: " << dealerHand.ToString() << " (" << dealerHand.Showing() << ")" << std::endl);
+		DebugOut(output << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl);
+
+		if (hand.IsBlackjack() && dealerHand.IsBlackjack())
+		{
+			// push
+			DebugOut(output << "Dealer & Player Blackjack, push\n");
+			continue;
+		}
+		else if (dealerHand.IsBlackjack())
+		{
+			DebugOut(output << "Dealer & Player Blackjack, push\n");
+			// TODO: accumulate money
+			continue;
+		}
+		else if (hand.IsBlackjack())
+		{
+			DebugOut(output << "Blackjack!\n");
+			// TODO: accumulate money
+			continue;
+		}
+
+		int dealerHandIndex = MapDealerHandToActionIndex(dealerHand.Showing());
+		int playerHandIndex = MapPlayerHandToActionIndex(hand);
+
+		std::array<Action, 4> allActions { Action::Stand, Action::Hit, Action::DoubleDown, Action::Split};
+		for (Action action : allActions)
+		{
+			if (!CanDoAction(hand, action))
+				continue;
+
+			if (action == Action::Split)
+				assert(playerHandIndex > 20);
+
+			PlayerHand handClone = playerHand;
+			DealerHand dealerHandClone = dealerHand;
+			DeckShoe shoeClone = shoe;
+
+			DebugOut(output << "\nTrying action: ");
+			DoAction(handClone, handClone.PrimaryHand(), action, shoeClone);
+
+			double result = CompleteOptimally(dealerHandClone, handClone, resultsTable, shoeClone, action);
+
+			DebugOut(output << "Result: " << result << "\n");
+
+			resultsTable.RecordResult(dealerHandIndex, playerHandIndex, action, result);
+		}
+
+		player.SignalNewHand();
+
+		//std::string temp;
+		//std::getline(std::cin, temp);
+	}
+
+	PrintResultsTable(resultsTable);
+
+	// Print out results table
+
+	return 0;
+}
+
+#if 0
+int DoMonte()
 {
 	srand(static_cast<unsigned int>(time(NULL)));
 	DeckShoe shoe(6);
@@ -759,4 +1119,13 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	return 0;
 }
+#endif
 
+int _tmain(int argc, _TCHAR* argv[])
+{
+	int iterations = 1000000;
+	if (argc >= 2)
+		iterations = _wtoi(argv[1]);
+
+	return DoMarkovMonte(iterations);
+}

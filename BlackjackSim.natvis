@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="Card">
+    <DisplayString Condition="m_rawValue == 0">Ace of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 1">Two of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 2">Three of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 3">Four of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 4">Five of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 5">Six of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 6">Seven of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 7">Eight of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 8">Nine of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 9">Ten of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 10">Jack of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 11">Queen of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 12">King of Spades</DisplayString>
+    <DisplayString Condition="m_rawValue == 13">Ace of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 14">Two of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 15">Three of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 16">Four of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 17">Five of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 18">Six of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 19">Seven of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 20">Eight of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 21">Nine of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 22">Ten of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 23">Jack of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 24">Queen of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 25">King of Hearts</DisplayString>
+    <DisplayString Condition="m_rawValue == 26">Ace of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 27">Two of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 28">Three of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 29">Four of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 30">Five of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 31">Six of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 32">Seven of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 33">Eight of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 34">Nine of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 35">Ten of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 36">Jack of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 37">Queen of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 38">King of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 39">Ace of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 40">Two of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 41">Three of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 42">Four of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 43">Five of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 44">Six of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 45">Seven of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 46">Eight of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 47">Nine of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 48">Ten of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 49">Jack of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 50">Queen of Clubs</DisplayString>
+    <DisplayString Condition="m_rawValue == 51">King of Clubs</DisplayString>
+  </Type>
+</AutoVisualizer>
