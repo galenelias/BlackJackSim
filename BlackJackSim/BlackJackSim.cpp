@@ -127,22 +127,77 @@ class DeckShoe
 public:
 	DeckShoe(int deckCount);
 
-	Card DealCard();
-	void ReloadIfNecessary();
+	size_t Size() const { return m_cards.size(); }
+	Card GetCard(size_t offset) const { return m_cards[offset]; }
+
+	void Reload();
 
 private:
 	void Clear();
-	void LoadDecks(int deckCount);
+	void LoadDecks();
 	void Shuffle();
 
-	int m_decks;
 	std::vector<Card> m_cards;
+	int m_decks;
 };
+
+class DeckShoeView
+{
+public:
+	DeckShoeView(const DeckShoe& deckShoe)
+		: m_shoe(deckShoe)
+	{ }
+
+	Card DealCard();
+	int Offset() const { return m_cardOffset; }
+	void SetOffset(int offset) { m_cardOffset = offset; }
+
+protected:
+	int m_cardOffset = 0;
+	const DeckShoe& m_shoe;
+};
+
+class MasterDeckShoeView : public DeckShoeView
+{
+public:
+	MasterDeckShoeView(DeckShoe& deckShoe)
+		: DeckShoeView(deckShoe)
+		, m_masterShoe(deckShoe)
+	{ }
+
+	void ReloadIfNecessary();
+
+private:
+	DeckShoe& m_masterShoe;
+};
+
+void DeckShoe::Reload()
+{
+	Clear();
+	LoadDecks();
+	Shuffle();
+}
+
+void MasterDeckShoeView::ReloadIfNecessary()
+{
+	double c_penetration = 0.7;
+	if (m_cardOffset > (c_penetration * m_masterShoe.Size()))
+	{
+		m_masterShoe.Reload();
+		m_cardOffset = 0;
+	}
+}
+
+Card DeckShoeView::DealCard()
+{
+	return m_shoe.GetCard(m_cardOffset++);
+}
+
 
 DeckShoe::DeckShoe(int deckCount)
 	: m_decks(deckCount)
 {
-	LoadDecks(m_decks);
+	LoadDecks();
 	Shuffle();
 }
 
@@ -151,9 +206,10 @@ void DeckShoe::Clear()
 	m_cards.clear();
 }
 
-void DeckShoe::LoadDecks(int deckCount)
+void DeckShoe::LoadDecks()
 {
-	for (int i = 0; i < deckCount; ++i)
+	m_cards.reserve(52 * m_decks);
+	for (int i = 0; i < m_decks; ++i)
 	{
 		for (int card = 0; card < 52; card++)
 		{
@@ -166,25 +222,6 @@ void DeckShoe::Shuffle()
 {
 	std::random_shuffle(begin(m_cards), end(m_cards));
 }
-
-Card DeckShoe::DealCard()
-{
-	Card returnCard = m_cards.back();
-	m_cards.pop_back();
-	return returnCard;
-}
-
-void DeckShoe::ReloadIfNecessary()
-{
-	double c_penetration = 0.3;
-	if (m_cards.size() < (size_t)(c_penetration * 52 * m_decks))
-	{
-		Clear();
-		LoadDecks(m_decks);
-		Shuffle();
-	}
-}
-
 
 class Hand
 {
@@ -317,7 +354,7 @@ public:
 	const std::string PlayerName() const { return m_player.Name(); }
 
 	void DoubleDown(Card card);
-	PlayerSubHand Split(DeckShoe & shoe);
+	PlayerSubHand Split(DeckShoeView & shoe);
 	void PayoutHand(double result);
 
 private:
@@ -343,7 +380,7 @@ public:
 	bool CanHit() const;
 
 	void AddCard(Card card);
-	void Split(PlayerSubHand& subHand, DeckShoe& shoe);
+	void Split(PlayerSubHand& subHand, DeckShoeView& shoe);
 
 private:
 	Player&  m_player;
@@ -365,7 +402,7 @@ bool PlayerHand::CanHit() const
 	return false;
 }
 
-void PlayerHand::Split(PlayerSubHand& subHand, DeckShoe& shoe)
+void PlayerHand::Split(PlayerSubHand& subHand, DeckShoeView& shoe)
 {
 	PlayerSubHand newHand = subHand.Split(shoe);
 	m_subHands.push_back(std::move(newHand));
@@ -383,7 +420,7 @@ void PlayerSubHand::DoubleDown(Card card)
 	AddCard(card);
 }
 
-PlayerSubHand PlayerSubHand::Split(DeckShoe & shoe)
+PlayerSubHand PlayerSubHand::Split(DeckShoeView & shoe)
 {
 	PlayerSubHand newHand(Owner());
 
@@ -782,7 +819,7 @@ bool CanDoAction(const PlayerSubHand& hand, Action action)
 	}
 }
 
-void DoAction(PlayerHand& playerHand, PlayerSubHand& subHand, Action action, DeckShoe& shoe)
+void DoAction(PlayerHand& playerHand, PlayerSubHand& subHand, Action action, DeckShoeView& shoe)
 {
 	switch (action)
 	{
@@ -886,7 +923,7 @@ Action GetOptimalAction(const ResultsTable& resultTable, int dealerHandIndex, co
 	return optimalAction;
 }
 
-double CompleteOptimally(DealerHand& dealerHand, PlayerHand& hand, const ResultsTable& resultTable, DeckShoe& shoe, Action lastAction)
+double CompleteOptimally(DealerHand& dealerHand, PlayerHand& hand, const ResultsTable& resultTable, DeckShoeView& shoe, Action lastAction)
 {
 	double result = 0.0;
 	auto& subHands = hand.SubHands();
@@ -959,7 +996,8 @@ int DoMarkovMonte(int iterations)
 	ResultsTable resultsTable;
 
 	srand(static_cast<unsigned int>(time(NULL)));
-	DeckShoe shoe(6);
+	DeckShoe shoeCards(6);
+	MasterDeckShoeView shoe(shoeCards);
 	Player dealer(std::string("Dealer"), 0);
 	
 	Player player("Player 1", 0.0);
@@ -1010,7 +1048,8 @@ int DoMarkovMonte(int iterations)
 
 		int dealerHandIndex = MapDealerHandToActionIndex(dealerHand.Showing());
 		int playerHandIndex = MapPlayerHandToActionIndex(hand);
-
+		
+		int maxShoeOffset = 0;
 		std::array<Action, 4> allActions { Action::Stand, Action::Hit, Action::DoubleDown, Action::Split};
 		for (Action action : allActions)
 		{
@@ -1022,7 +1061,7 @@ int DoMarkovMonte(int iterations)
 
 			PlayerHand handClone = playerHand;
 			DealerHand dealerHandClone = dealerHand;
-			DeckShoe shoeClone = shoe;
+			DeckShoeView shoeClone = shoe;
 
 			DebugOut(output << "\nTrying action: ");
 			DoAction(handClone, handClone.PrimaryHand(), action, shoeClone);
@@ -1032,7 +1071,11 @@ int DoMarkovMonte(int iterations)
 			DebugOut(output << "Result: " << result << "\n");
 
 			resultsTable.RecordResult(dealerHandIndex, playerHandIndex, action, result);
+
+			maxShoeOffset = std::max(maxShoeOffset, shoeClone.Offset());
 		}
+
+		shoe.SetOffset(maxShoeOffset);
 
 		player.SignalNewHand();
 
