@@ -1,8 +1,6 @@
 // BlackJackSim.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
-
 #include <vector>
 #include <sstream>
 #include <string>
@@ -1164,11 +1162,11 @@ int DoMonte()
 }
 #endif
 
-int _tmain(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
 	int iterations = 1000000;
 	if (argc >= 2)
-		iterations = _wtoi(argv[1]);
+		iterations = atoi(argv[1]);
 
 	return DoMarkovMonte(iterations);
 }
