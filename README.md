@@ -1,20 +1,13 @@
-#Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# Summary 
+This is a program to attempt to devise the optimal blackjack strategy via repeated simulation. It plays a large number of hands, tracking each choice made and the resulting outcome to both deduce the optimal strategy, but also to give the relative expected values of each choice.
 
-#Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+# Details
+I wanted to write a program to find the relative outcomes of each choice in blackjack, but without computing any actual probabilites, as that's harder, and takes the fun out of it.  I was specifically curious to find what were the 'significant' choices in blackjack, where the difference between making the optimal play and the next most optimal play has the largest delta, as well as what hands you're expected to make money on.
 
-#Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+This blackjack simulator works by continuously playing hands of blackjack, starting with no knowledge of the strategy or outcomes.  For for each possible action available, it tries all options simultaneously in, tracking the outcome of doing that action followed by playing 'optimally' from there on out.  Playing 'optimally' involved choosing the actionw with the highest expected outcome, so it's ability to play optimally improves as the simulation runs.
 
-#Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+# Results
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://www.visualstudio.com/en-us/docs/git/create-a-readme). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+Here is an example table with the normalized expected value of various player hands vs. what the dealer is showing.  This table shows quite well the differences in expected value between having an 11 and a 12, and why it is so important to double down in these hands.
+
+![Example results](Assets/OutputTable_formatted.png)
