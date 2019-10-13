@@ -86,13 +86,14 @@ int Card::Value() const
 		return (static_cast<int>(Face()) + 1); // +1 due to zero based enumeration
 }
 
-char* g_szSuitNames[4] = {"S", "H", "C", "D"};
-char* g_szFaceNames[13] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
 
 std::string Card::ToString() const
 {
-	std::string strFaceName = g_szFaceNames[static_cast<int>(Face())];
-	std::string strSuitName = g_szSuitNames[static_cast<int>(Suit())];
+	constexpr char* g_szSuitNames[4] = { "S", "H", "C", "D" };
+	constexpr char* g_szFaceNames[13] = { "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K" };
+
+	std::string strFaceName = g_szFaceNames[static_cast<size_t>(Face())];
+	std::string strSuitName = g_szSuitNames[static_cast<size_t>(Suit())];
 
 	return strFaceName + strSuitName;
 }
@@ -494,151 +495,8 @@ const char* GetActionString(Action action)
 	}
 }
 
-const int c_maxPlayerHandIndex = 31;
-const int c_maxDealerHandIndex = 10;
-
-#if 0
-class ActionTable
-{
-public:
-	Action GetAction(int dealerIndex, int playerIndex);
-
-	void GenerateRandomActionTable();
-	void AdjustRandomActionTable(int entriesToAdjust);
-	void LoadActionTable(const std::string & strTable);
-	std::string SaveActionTable();
-	void PrintActionTable(std::ostream & stream);
-
-private:
-
-	Action m_actions[c_maxPlayerHandIndex][c_maxDealerHandIndex];
-	int m_actionCount[c_maxPlayerHandIndex][c_maxDealerHandIndex];
-};
-
-Action ActionTable::GetAction(int dealerIndex, int playerIndex)
-{
-	m_actionCount[playerIndex][dealerIndex]++;
-	return m_actions[playerIndex][dealerIndex];
-}
-
-void ActionTable::GenerateRandomActionTable()
-{
-	for (int i=0; i < c_maxDealerHandIndex; i++)
-	{
-		for (int j = 0; j < c_maxDealerHandIndex; j++)
-		{
-			int r = rand() % 4;
-			m_actions[i][j] = static_cast<Action>(r);
-		}
-	}
-
-	for (int i=c_maxDealerHandIndex; i < c_maxPlayerHandIndex; i++)
-	{
-		for (int j = 0; j < c_maxDealerHandIndex; j++)
-		{
-			int r = rand() % 3; // no split
-			m_actions[i][j] = static_cast<Action>(r);
-		}
-	}
-
-	for (int i=0; i < c_maxPlayerHandIndex; i++)
-	{
-		for (int j = 0; j < c_maxDealerHandIndex; j++)
-		{
-			m_actionCount[i][j] = 0;
-		}
-	}
-}
-
-void ActionTable::AdjustRandomActionTable(int entriesToAdjust)
-{
-	for (int e = 0; e < entriesToAdjust; e++)
-	{
-		int i = rand() % c_maxPlayerHandIndex;
-		int j = rand() % c_maxDealerHandIndex;
-
-		int r = 0;
-		if (i < c_maxDealerHandIndex)
-			r = rand() % 4;
-		else
-			r = rand() % 3;
-
-		m_actions[i][j] = static_cast<Action>(r);
-	}
-
-	for (int i=0; i < c_maxPlayerHandIndex; i++)
-	{
-		for (int j = 0; j < c_maxDealerHandIndex; j++)
-		{
-			m_actionCount[i][j] = 0;
-		}
-	}
-}
-
-
-void ActionTable::LoadActionTable(const std::string & strActions)
-{
-	int index=0;
-
-	for (int i=0; i < c_maxPlayerHandIndex; i++)
-	{
-		for (int j = 0; j < c_maxDealerHandIndex; j++)
-		{
-			char c = strActions[index++];
-			switch (c)
-			{
-			case 's': m_actions[i][j] = Action::Stand; break;
-			case 'h': m_actions[i][j] = Action::Hit; break;
-			case 'd': m_actions[i][j] = Action::DoubleDown; break;
-			case 'p': m_actions[i][j] = Action::Split; break;
-			}
-		}
-	}
-
-}
-
-std::string ActionTable::SaveActionTable()
-{
-	std::string strActions;
-	strActions.reserve(c_maxPlayerHandIndex*c_maxDealerHandIndex);
-
-	for (int i=0; i < c_maxPlayerHandIndex; i++)
-	{
-		for (int j = 0; j < c_maxDealerHandIndex; j++)
-		{
-			switch (m_actions[i][j])
-			{
-			case Action::Stand: strActions.append(1, 's'); break;
-			case Action::Hit: strActions.append(1, 'h'); break;
-			case Action::DoubleDown: strActions.append(1, 'd'); break;
-			case Action::Split: strActions.append(1, 'p'); break;
-			}
-		}
-	}
-
-	return std::move(strActions);
-}
-
-void ActionTable::PrintActionTable(std::ostream & stream)
-{
-	for (int i=0; i < c_maxPlayerHandIndex; i++)
-	{
-		for (int j = 0; j < c_maxDealerHandIndex; j++)
-		{
-			switch (m_actions[i][j])
-			{
-			case Action::Stand: stream << "s "; break;
-			case Action::Hit: stream << "h "; break;
-			case Action::DoubleDown: stream << "d "; break;
-			case Action::Split: stream << "p "; break;
-			}
-			stream << "(" << m_actionCount[i][j] << ") ";
-		}
-		stream << std::endl;
-	}
-	stream << std::endl;
-}
-#endif
+constexpr int c_maxPlayerHandIndex = 31;
+constexpr int c_maxDealerHandIndex = 10;
 
 int MapPlayerHandToActionIndex(const PlayerSubHand & hand)
 {
@@ -673,18 +531,15 @@ int MapDealerHandToActionIndex(int dealerCardValue)
 		return dealerCardValue - 2;
 }
 
-#if 0
-int s_Results[5] = {0,0,0,0,0};
-
 std::string GetNextAction(DealerHand & dealer, PlayerHand & player)
 {
 	return "s";
 }
 
-bool RunOneRound(DeckShoe & shoe, std::vector<Player> & players, ActionTable & actionTable)
+bool RunOneRoundInteractively(MasterDeckShoeView & shoe, std::vector<Player> & players)
 {
 	DealerHand dealerHand;
-	std::list<PlayerHand> playerHands;
+	std::list<PlayerSubHand> playerHands;
 
 	shoe.ReloadIfNecessary();
 
@@ -708,70 +563,68 @@ bool RunOneRound(DeckShoe & shoe, std::vector<Player> & players, ActionTable & a
 	//output << "*******************************************" << std::endl;
 	for (auto & hand : playerHands)
 	{
-		//output << "Dealer showing: " << dealerHand.ToString() << " (" << dealerHand.Showing() << ")" << std::endl;
-		//output << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
+		std::cout << "Dealer showing: " << dealerHand.ToString() << " (" << dealerHand.Showing() << ")" << std::endl;
+		std::cout << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
 
 		while (hand.CanHit() && !dealerHand.IsBlackjack())
 		{
-			Action action;
-			//output << "Action (h, s, p, d)? ";
-			
-			//std::cin >> action;
-			action = actionTable.GetAction(MapDealerHandToActionIndex(dealerHand.Showing()), MapPlayerHandToActionIndex(hand));
-			//action = GetNextAction(dealerHand, hand);
+			std::cout << "Action ((h)it, (s)tand, s(p)lit, (d)ouble down)? ";
+			std::string userAction;
+			std::cin >> userAction;
 
-			if (action == Action::DoubleDown && !hand.CanDoubleDown())
-				action = Action::Hit;
+			Action action;
+			if (userAction == "h") action = Action::Hit;
+			else if (userAction == "s") action = Action::Stand;
+			else if (userAction == "p") action = Action::Split;
+			else if (userAction == "d") action = Action::DoubleDown;
+			else continue;
+
+			if ((action == Action::DoubleDown && !hand.CanDoubleDown()) || (action == Action::Split && !hand.CanSplit()))
+			{
+				std::cout << "Can't " << GetActionString(action) << " right now\n";
+			}
 
 			if (action == Action::Hit)
 			{
-				//output << "Hitting\n";
+				std::cout << "Hitting\n";
 				hand.AddCard(shoe.DealCard());
-				//output << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
+				std::cout << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
 			}
 			else if (action == Action::Stand)
 			{
-				//output << "Standing\n";
+				std::cout << "Standing\n";
 				break;
 			}
 			else if (action == Action::Split && hand.CanSplit())
 			{
 				// TODO
 				playerHands.emplace_back(hand.Split(shoe));
-				//output << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
+				std::cout << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
 			}
 			else if (action == Action::Split)
 			{
-				std::cerr << "Hand not split-able" << std::endl;
+				std::cout << "Hand not split-able" << std::endl;
 			}
 			else if (action == Action::DoubleDown)
 			{
-				hand.DoubleDown();
-				hand.AddCard(shoe.DealCard());
-				//output << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
+				const Card card = shoe.DealCard();
+				hand.DoubleDown(card);
+				std::cout << hand.PlayerName() <<  "'s hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
 				break;
-			}
-			//else if (action == "q")
-			//{
-			//	return false;
-			//}
-			else
-			{
-				std::cerr << "Unrecognized command: " << (int)action << std::endl;
 			}
 		}
 	}
 
-	// Todo: check for all players busted
+	// TODO: check for all players busted
 	dealerHand.FlipHiddenCard();
 
-	//output << "Dealer: " << dealerHand.ToString() << " (" << dealerHand.Value() << ")" << std::endl;
+	std::cout << "Dealer: " << dealerHand.ToString() << " (" << dealerHand.Value() << ")" << std::endl;
 
 	while (dealerHand.Value() < 17 || (dealerHand.Value() == 17 && dealerHand.IsSoft()))
 	{
 		auto card = shoe.DealCard();
 		dealerHand.AddCard(card);
-		//output << "Dealer: " << dealerHand.ToString() << " (" << dealerHand.Value() << ")" << std::endl;
+		output << "Dealer: " << dealerHand.ToString() << " (" << dealerHand.Value() << ")" << std::endl;
 	}
 
 	for (auto & player : players)
@@ -781,26 +634,41 @@ bool RunOneRound(DeckShoe & shoe, std::vector<Player> & players, ActionTable & a
 
 	for (auto & hand : playerHands)
 	{
-		//output << std::endl;
-		//output << hand.PlayerName() <<  "'s final hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
-		double outcome = GetHandOutcome(hand, dealerHand);
-
-		//if (-1.0 == outcome)
-		//	s_Results[0]++;
-		//else if (0.0 == outcome)
-		//	s_Results[1]++;
-		//else if (1.0 == outcome)
-		//	s_Results[2]++;
-		//else if (1.5 == outcome)
-		//	s_Results[3]++;
+		std::cout << std::endl;
+		std::cout << hand.PlayerName() <<  "'s final hand: " << hand.ToString() << " (" << hand.Value() << ")" << std::endl;
+		const double outcome = GetHandOutcome(hand, dealerHand);
 
 		hand.PayoutHand(outcome);
-		//output << "Payout: " << hand.Bet() * outcome << " (" << hand.Owner().Money() << ")" << std::endl;
+		std::cout << "Payout: " << hand.Bet() * outcome << " (" << hand.Owner().Money() << ")\n\n";
 	}
 
 	return true;
 }
-#endif 
+
+void PlayInteractively()
+{
+	DeckShoe shoeCards(6);
+	MasterDeckShoeView shoe(shoeCards);
+	Player dealer(std::string("Dealer"), 0);
+
+	std::vector<Player> players;
+
+	double bestExpectedValue = -100;
+
+	players.emplace_back("Player 1", 0.0);
+	//players.emplace_back("Player 2", 500.0);
+
+
+	bool fRunMore = true;
+
+	//while (fRunMore)
+	for (;;)
+	{
+		players[0].ClearStats();
+
+		fRunMore = RunOneRoundInteractively(shoe, players);
+	}
+}
 
 bool CanDoAction(const PlayerSubHand& hand, Action action)
 {
@@ -968,7 +836,7 @@ double CompleteOptimally(DealerHand& dealerHand, PlayerHand& hand, const Results
 
 void PrintResultsTable(const ResultsTable& results)
 {
-	std::array<Action, 4> allActions { Action::Stand, Action::Hit, Action::DoubleDown, Action::Split};
+	constexpr std::array<Action, 4> allActions = { Action::Stand, Action::Hit, Action::DoubleDown, Action::Split};
 
 	for (int i=0; i < c_maxPlayerHandIndex; i++)
 	{
@@ -1050,7 +918,7 @@ int DoMarkovMonte(int iterations)
 		int playerHandIndex = MapPlayerHandToActionIndex(hand);
 		
 		int maxShoeOffset = 0;
-		std::array<Action, 4> allActions { Action::Stand, Action::Hit, Action::DoubleDown, Action::Split};
+		constexpr std::array<Action, 4> allActions { Action::Stand, Action::Hit, Action::DoubleDown, Action::Split};
 		for (Action action : allActions)
 		{
 			if (!CanDoAction(hand, action))
@@ -1085,84 +953,9 @@ int DoMarkovMonte(int iterations)
 
 	PrintResultsTable(resultsTable);
 
-	// Print out results table
-
 	return 0;
 }
 
-#if 0
-int DoMonte()
-{
-	srand(static_cast<unsigned int>(time(NULL)));
-	DeckShoe shoe(6);
-	Player dealer(std::string("Dealer"), 0);
-	
-	std::vector<Player> players;
-
-	ActionTable bestActionTableSoFar;
-	double bestExpectedValue = -100;
-
-	players.emplace_back("Player 1", 0.0);
-	//players.emplace_back("Player 2", 500.0);
-
-
-	bool fRunMore = true;
-
-	bestActionTableSoFar.LoadActionTable(
-		"sdphsddspdppdhhdpdpppppsspphhdpdpspshdhpsshppphpdddsshdhphhhhspshpspshhhshhhpphspdpspshspssspspssspdhsshddhdhhhddhshhddhdhhhsssdhhdsddddhdhdddsdhhhdssshdhsdhhshdhdshsdddssshddhssshsshddhsdshhshshddhhdhhsdshshhsdhsdddhdshssddhhdhhdhhhhdddhdddddddhdddhddssssdshsssdhssshhhssshdshssdssshsshssdsshhsssdshssshhhsssssshhsssssdssssssssshssssssssss"
-		
-		/*card */// "ppppppppppppdphsssssphpssssssspdpspsssssddddddddssdpshdhphhhhspshpspshppppppppppddpspshppssssssssssshssddhhdhhhddhshdddhdhhhsssddhdsddddddhdddsdhhhdssdhdhhdhhdhsssssssssssssssssssshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhddddhhhhhddddddddhhdddddddddhhhsssshhhhsssssshhhhsssssshhhhsssssshhhhsssssshhhhssssssssssssssssssssssssssssssssssssssss"
-		);
-	//bestActionTableSoFar.GenerateRandomActionTable();
-
-	//while (fRunMore)
-	for (int round = 0; round != 1 /*200*/; round++)
-	{
-		players[0].ClearStats();
-		ActionTable actionTable;
-
-		if (round % 50 == 0)
-			std::cout << "Round " << round << std::endl;
-		
-		actionTable = bestActionTableSoFar;
-
-		if (round > 10)
-			actionTable.AdjustRandomActionTable(5);
-
-		for (int i=0; i < 100000; i++)
-		{
-			fRunMore = RunOneRound(shoe, players, actionTable);
-		}
-
-		double expectedValue = players[0].Money() / players[0].Hands();
-		if (expectedValue > bestExpectedValue)
-		{
-			bestActionTableSoFar = actionTable;
-			bestExpectedValue = expectedValue;
-			std::cout << "Best expected value (round " << round << "): " << bestExpectedValue << "\n";
-		}
-	}
-
-	std::cout << "Best expected value: " << bestExpectedValue << "\n";
-	//bestActionTableSoFar.PrintActionTable(std::cout);
-
-	//do
-	//{
-	//	fRunMore = RunOneRound(shoe, players);
-	//	output << std::endl << std::endl;
-	//} while (fRunMore);
-
-	//for (auto & player : players)
-	//{
-	//	std::cout << player.Name() << ": Final money = " << player.Money() << std::endl;
-	//	std::cout << " Expected value: " << player.Money() / player.Hands() << std::endl;
-	//}
-
-	std::cout << bestActionTableSoFar.SaveActionTable() << std::endl;
-
-	return 0;
-}
-#endif
 
 int main(int argc, char* argv[])
 {
@@ -1170,5 +963,6 @@ int main(int argc, char* argv[])
 	if (argc >= 2)
 		iterations = atoi(argv[1]);
 
+	//PlayInteractively();
 	return DoMarkovMonte(iterations);
 }
