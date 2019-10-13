@@ -1,25 +1,25 @@
-// BlackJackSim.cpp : Defines the entry point for the console application.
-//
+// BlackJackSim.cpp : Monte Carlo like simulation of black jack to deduce optimal decision tables
 
-#include <vector>
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <fstream>
+#include <iostream>
+#include <list>
+#include <random>
 #include <sstream>
 #include <string>
-#include <algorithm>
-#include <iostream>
-#include <fstream>
-#include <list>
 #include <time.h>
-#include <cassert>
-#include <array>
+#include <vector>
 
-//std::ostream & output = std::cout;
 std::ofstream nullStream;
-std::ostream & output = nullStream;
+std::ostream& output = nullStream;     // Easily switch off output
+//std::ostream & output = std::cout;   // Or use this one to enable output
 
 #define DebugOut(x)
 //#define DebugOut(x) x
 
-enum CardFace
+enum class CardFace
 {
 	Ace,
 	Two,
@@ -36,7 +36,7 @@ enum CardFace
 	King,
 };
 
-enum CardSuit
+enum class CardSuit
 {
 	Spades,
 	Hearts,
@@ -78,9 +78,9 @@ CardSuit Card::Suit() const
 
 int Card::Value() const
 {
-	if (Face() == Ace)
+	if (Face() == CardFace::Ace)
 		return 11;
-	else if (Face() >= Ten)
+	else if (Face() >= CardFace::Ten)
 		return 10;
 	else
 		return (static_cast<int>(Face()) + 1); // +1 due to zero based enumeration
@@ -135,6 +135,7 @@ private:
 	void LoadDecks();
 	void Shuffle();
 
+	std::default_random_engine m_randomEngine;
 	std::vector<Card> m_cards;
 	int m_decks;
 };
@@ -194,6 +195,7 @@ Card DeckShoeView::DealCard()
 
 DeckShoe::DeckShoe(int deckCount)
 	: m_decks(deckCount)
+	, m_randomEngine(std::random_device{}())
 {
 	LoadDecks();
 	Shuffle();
@@ -218,7 +220,7 @@ void DeckShoe::LoadDecks()
 
 void DeckShoe::Shuffle()
 {
-	std::random_shuffle(begin(m_cards), end(m_cards));
+	std::shuffle(begin(m_cards), end(m_cards), m_randomEngine);
 }
 
 class Hand
@@ -258,7 +260,7 @@ std::pair<int, bool> Hand::ComputeValue() const  // <sum, isSoft
 	for (const auto & card : m_cards)
 	{
 		sum += card.Value();
-		if (card.Face() == Ace)
+		if (card.Face() == CardFace::Ace)
 			aceCount++;
 	}
 
@@ -443,7 +445,7 @@ void PlayerSubHand::PayoutHand(double result)
 
 bool PlayerSubHand::CanHit() const
 {
-	bool cantHit = IsBusted() || IsBlackjack() || (m_isFromSplit && m_cards[0].Face() == Ace) || Value() >= 21;
+	bool cantHit = IsBusted() || IsBlackjack() || (m_isFromSplit && m_cards[0].Face() == CardFace::Ace) || Value() >= 21;
 	return !cantHit;
 }
 
@@ -648,7 +650,7 @@ int MapPlayerHandToActionIndex(const PlayerSubHand & hand)
 	const int handValue = hand.Value();
 	assert(handValue != 21);
 
-	if (hand.CanSplit() && hand.GetCard(0).Face() == Ace)
+	if (hand.CanSplit() && hand.GetCard(0).Face() == CardFace::Ace)
 		return 21;
 	else if (hand.CanSplit())
 		return 20 + hand.GetCard(0).Value();
@@ -1164,7 +1166,7 @@ int DoMonte()
 
 int main(int argc, char* argv[])
 {
-	int iterations = 1000000;
+	int iterations = 1'000'000;
 	if (argc >= 2)
 		iterations = atoi(argv[1]);
 
